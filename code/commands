@@ -1,0 +1,28 @@
+# Build the Docker image
+make docker-build
+
+# Drop into the container with your current directory mounted at /work
+make docker-run
+
+# Optional: make a Singularity .sif from the Docker image
+# make singularity-sif
+
+# Optional: make a Singularity sandbox (like your original command)
+# make singularity-sandbox
+
+
+
+library(stringr)
+library(argparse)
+library(ggplot2)
+library(dplyr)
+library(forcats)
+library(DOSE)
+library(enrichplot)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(lplyr)
+library(msigdbr)
+library(msigdbdf)
+library(org.Hs.eg.db)
+library(org.Mm.eg.db)

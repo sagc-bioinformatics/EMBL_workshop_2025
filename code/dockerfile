@@ -1,0 +1,35 @@
+FROM bioconductor/bioconductor_docker:RELEASE_3_18
+
+LABEL maintainer="simon.lee@sahmri.com" \
+      description="GSEA container with extra R packages (msigdb, lplyr, msigdbdf, etc.)"
+
+## System deps for devtools, BiocManager, and downloads
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        wget \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libxml2-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+## Download msigdbdf tarball from R-universe
+RUN wget https://igordot.r-universe.dev/bin/linux/noble-x86_64/4.6/src/contrib/msigdbdf_25.1.0.tar.gz -O /tmp/msigdbdf.tar.gz
+
+## Install R packages
+RUN R -e "options(Ncpus = parallel::detectCores()); \
+          if (!requireNamespace('BiocManager', quietly = TRUE)) \
+              install.packages('BiocManager', repos = 'https://cloud.r-project.org'); \
+          if (!requireNamespace('devtools', quietly = TRUE)) \
+              install.packages('devtools', repos = 'https://cloud.r-project.org');" \
+ && R -e "options(Ncpus = parallel::detectCores()); \
+          install.packages(c('ggplot2', 'forcats'), repos = 'https://cloud.r-project.org'); \
+          BiocManager::install(c('DOSE', 'enrichplot', 'clusterProfiler', 'msigdb', 'msigdbr')); \
+          install.packages(c('argparse', 'readr')); \
+          BiocManager::install(c('AnnotationDbi', 'org.Hs.eg.db', 'org.Mm.eg.db'));" \
+ && R -e "devtools::install_github('paulponcet/lplyr')" \
+ && R -e "install.packages('/tmp/msigdbdf.tar.gz', repos = NULL, type = 'source')"
+
+WORKDIR /work
+
+CMD ["R"]
