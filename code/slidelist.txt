@@ -1,0 +1,5 @@
+ArrayTaskID	quote	sample	area	micid	slideid
+1	customerquote	sample1	A1	Clone1	H1-ABCDEFG
+2	customerquote	sample2	D1	Clone2	H1-ABCDEFG
+3	customerquote	sample3	A1	Clone3	H1-HIJKLMN
+4	customerquote	sample4	D1	Clone4	H1-HIJKLMN
