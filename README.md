@@ -31,9 +31,9 @@ You will be given a username and password to login on the day.
 
 You then have two options for connecting:
 
-1. ssh in directly, using <username>@setonix.pawsey.org.au
+1. ssh in directly, using username@setonix.pawsey.org.au
 
-2. connect to an RStudio instance already running via your browser: https://embl.sagc-dataviz.cloud.edu.au/<username>
+2. connect to an RStudio instance already running via your browser: https://embl.sagc-dataviz.cloud.edu.au/username
 
 ## SSH setup
 
