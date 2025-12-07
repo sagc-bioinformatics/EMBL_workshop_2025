@@ -1,0 +1,211 @@
+---
+title: "10x Xenium Analysis Part 1"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This part of the analysis will read in raw data and construct a data object containing the 10x Xenium data. It will also explore the Xenium outputs explore the data object.
+
+# Load libraries
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE}
+library(SpatialFeatureExperiment)
+library(Voyager)
+library(RBioFormats)
+library(scater)
+library(BiocParallel)
+library(scran)
+library(fs)
+library(bluster)
+library(sf)
+library(ggplot2)
+library(EBImage)
+library(SpatialExperimentIO)
+library(Voyager)
+library(SpatialExperiment)
+library(terra)
+library(scales)
+library(plotly)
+library(arrow)
+```
+
+# Read in Xenium data
+
+* Locate the Xenium output bundle on your computer and set it to ```dir```
+* Might have to unzip first
+* Check the Xenium output bundle in a tree-like format
+* read data into an SE object
+* dir should point to the Xenium outputs
+* this output folder contains data from patient 5
+* the main files (bare minimum) needed for construction of SFE are:
+* cell_feature_matrix.h5
+* cells.parquet
+* experiment.xenium
+* Cell segmentations are found in `.parquet` file(s) so to include cell segmentation boundaries in the object, also need the files:
+* cell_boundaries.parquet
+* And images:
+* morphology_focus folder
+
+```{r}
+# from file Xenium_V1_Human_Colon_Cancer_P5_CRC_Add_on_FFPE_outs.zip
+
+dir <- "/Users/a1233698/Downloads/xenium_colon/"
+
+# examine files in Xenium output bundle
+fs::dir_tree(dir)
+
+# create data object and call it se
+se <- SpatialFeatureExperiment::readXenium(data_dir = dir, 
+                                                    sample_id = "p5",
+                                           row.names = "symbol")
+
+# Read in data with readRDS instead
+#se3 <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/se_xenium.rds")
+```
+
+# Exploring the Xenium SE object
+
+* Getting, setting, and plotting fields of SE objects
+* Common operations on SE objects
+* getters, setters, and plotting functions
+* Find the gene count matrix
+* Where are the gene counts?
+
+```{r}
+# summary
+se
+# dimensions
+dim(se)
+
+# use the 'counts' getter function 
+m <- counts(se)
+head(m)
+```
+
+Explore metadata within the Xenium SE data object
+
+* The gene count matrix has metadata about the cells and genes.
+* This metadata is stored within various slots of the SE object.
+* Use the ```colData``` getter function to get cell metadata and ```rowData``` to get gene metadata.
+
+```{r}
+colData(se) # cell metadata
+rowData(se) # gene metadata
+
+colGeometries(se)
+
+# use the $ operator to access slops within the object
+# se$
+
+# save file as SE object
+# re-use this later as needed
+#saveRDS(object = se, file = "/DIR/se_p5.rds")
+```
+
+Image Data
+
+```{r}
+# image
+imgData(se)
+imageIDs(se)
+```
+
+Plot Image 
+
+* Image channels
+* Normalize channels and side-by-side plotting
+* Access images with getter functions ```imgData``` and ```imageIDs```
+* This part of the analysis will require the ```RBioFormats``` package.
+* Plot transcript counts across spatial image. 
+* Get the spatial extent of the spatial image with ```terra::ext()```
+* View the binary mask of the image
+* Explore and visualise image channels. 
+
+```{r}
+# change channel argument
+plotImage(sfe = se, image_id = "morphology_focus", channel = 3:1)
+
+# plot side-by-side
+# add show axes argument
+plotImage(se, image_id = "morphology_focus", channel = 3:1, normalize_channels = TRUE) +
+plotImage(se, image_id = "morphology_focus", channel = 1, palette = viridis_pal()(255))
+```
+
+Plot Xenium cells custom
+
+* Cell density plot
+* Binning
+
+```{r}
+# change binwidth argument
+plotCellBin2D(se, binwidth = 20, hex = TRUE)
+```
+
+Plot Xenium cells custom
+
+* Bounding boxes
+* Plot the cell segmentation results. Also plot with the dark theme. 
+* Use the ```plotGeometry``` function. 
+
+```{r}
+plotImage(sfe = se, image_id = "morphology_focus", channel = 3:1, show_axes = T)
+
+bbox1 <- c(xmin = 5500, xmax = 6000, ymin = -1250, ymax = -750)
+
+bbox2 <- c(xmin = 2500, xmax = 3000, ymin = -5000, ymax = -4000)
+
+# full image with bboxes
+bboxes_sf <- c(st_as_sfc(st_bbox(bbox1)), st_as_sfc(st_bbox(bbox2)))
+plotImage(se, image_id = "morphology_focus", channel = 3:1, show_axes = TRUE,
+          dark = TRUE, normalize_channels = TRUE) +
+    geom_sf(data = bboxes_sf, fill = NA, color = "white", linewidth = 0.5)
+
+# just bbox
+plotSpatialFeature(se, features = "total_counts",
+                   colGeometryName = "cellSeg",
+                   aes_use = "color", fill = NA, # Only color by cell outline
+                   image_id = "morphology_focus", dark = TRUE, bbox = bbox2, channel = 1)
+
+# "type" or "colGeometryName" depending on version of the package
+plotGeometry(se, colGeometryName = "cellSeg", show_axes = TRUE) +
+    plotGeometry(se, colGeometryName = "cellSeg", show_axes = TRUE, dark = TRUE)
+```
+
+Image processing
+
+* Basic introduction. 
+* Otsu thresholding.
+* Binary mask.
+
+```{r}
+(img <- getImg(se, image_id = "morphology_focus"))
+
+# get the extent of the spatial image
+terra::ext(img)
+
+# convert BioFormatsImage to ExtImage
+ebi <- toExtImage(img)
+# display with EBimage
+#EBImage::display(normalize(ebi))
+
+# hist(ebi)
+
+th <- EBImage::otsu(ebi, range = range(ebi), levels = max(ebi))
+mask <- ebi > th
+EBImage::display(mask)
+
+
+```
+
+# Save checkpoint
+
+```{r, eval=FALSE}
+saveRDS(object = se, file = "xenium/data/se_xenium.rds")
+```

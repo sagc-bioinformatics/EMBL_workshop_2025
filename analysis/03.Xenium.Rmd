@@ -1,0 +1,329 @@
+---
+title: "10x Xenium Analysis Part 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Part 3 of the analysis will cover: 
+
+* Differential Expression analysis
+* Neighbourhood analysis
+* Cell identity annotation
+
+# Load libraries
+
+```{r, echo=FALSE, include=FALSE}
+library(SpatialFeatureExperiment)
+library(Voyager)
+library(RBioFormats)
+library(scater)
+library(BiocParallel)
+library(scran)
+library(fs)
+library(bluster)
+library(sf)
+library(spacexr)
+library(EBImage)
+library(terra)
+library(scales)
+library(plotly)
+```
+
+# Read in data
+
+```{r}
+se <- readRDS(file = "xenium/data/se_clust.rds")
+```
+
+# Differential Expression Testing
+
+* Cluster marker genes are found with the Wilcoxon rank sum test as commonly done for scRNA-seq.
+* Run DE tests with the ```findMarkers``` function.
+* This will find candidate marker genes per cluster. 
+* Plot results as violin plots and heatmap.
+* ```TGFBI``` is a marker related to SPP1+ macrophages.
+* The ```PIGR``` gene is identified as a marker for goblet cells and enterocytes.
+* ```PECAM1``` is used to gain a detailed understanding of the cellular landscape in specific regions of the TME and is used as a marker gene for endothelial cells.
+
+```{r, fig.height=10, fig.width=8}
+# run test
+markers <- findMarkers(se, groups = colData(se)$cluster,
+                       test.type = "wilcox", pval.type = "all", direction = "up")
+
+# plot markers per cluster
+genes_use <- vapply(markers, function(x) rownames(x)[1], FUN.VALUE = character(1))
+y <- plotExpression(se, genes_use, x = "cluster", point_fun = function(...) list())
+y
+
+# plot clusters
+f <- plotSpatialFeature(se, "cluster", colGeometryName = "cellSeg", pointsize = 1.4) + ggtitle("Leiden gene expression clustering")
+
+# plot heatmap
+genes_use2 <- unique(unlist(lapply(markers, function(x) rownames(x)[1:5])))
+plotGroupedHeatmap(se, genes_use2, group = "cluster", colour = scales::viridis_pal()(100))
+```
+
+# Local spatial statistics of marker genes
+
+* Plot the genes in space as a reference. 
+* The sources use ```CLCA1``` as one of the marker genes for goblet cells within the colon tissue.
+* They measure the localisation of transcripts for these genes within specific regions of interest (ROIs) that correspond to colon glands, where goblet cells are typically found.
+* The analysis showed that the majority of transcripts for these genes, including CLCA1, were indeed detected in their expected locations, backing up findings from Visium HD. 
+
+```{r, fig.width=12, fig.height=12}
+plotSpatialFeature(se, genes_use, colGeometryName = "centroids", ncol = 3,
+                   pointsize = 2, scattermore = TRUE)
+```
+
+# Neighbourhood analysis and Spatial Graphs
+
+* Find a spatial neighborhood graph with the K nearest neighbours method. 
+* Calculate Spatial correlation using Moran's I. Visualise spatially variable genes. 
+* The paper uses ```CEACAM5``` and ```CEACAM6``` as a marker gene for tumour cells in CRC samples. This implies that CEACAM5 exhibits specific and reliable expression patterns in tumour cells, making it useful for identifying these cells within the complex tissue microenvironment (TME)
+
+```{r}
+# calculate spatial neighbourhood graph
+colGraph(se, "knn") <- findSpatialNeighbors(se, 
+                                            method = "knearneigh",
+                                            k = 5)
+#plotColGraph(se, colGraphName = "knn")
+
+se <- runMoransI(se, colGraphName = "knn", BPPARAM = MulticoreParam(2))
+# get top
+top_moran <- rownames(se)[order(rowData(se)$moran_p5, decreasing = TRUE)[1:6]]
+# visualise
+plotSpatialFeature(se, top_moran, colGeometryName = "centroids",
+                   scattermore = TRUE, ncol = 2, pointsize = 1.5)
+```
+
+# Plot individual genes or markers of interest
+
+* Visualise genes of interest using the ```plotSpatialFeature``` function.
+* Choose any gene from ```rownames(se)```
+
+```{r}
+# CLCA1 
+plotSpatialFeature(se, "LCN2", colGeometryName = "cellSeg", 
+                  image_id = "morphology_focus",
+                   fill = NA, aes_use = "color", linewidth = 0.15,
+                   tx_fixed = list(color = "lightgray"),
+                   channel = 3:1, dark = TRUE, normalize_channels = TRUE)
+
+# TRAC
+plotSpatialFeature(se, "TRAC", colGeometryName = "cellSeg", 
+                  image_id = "morphology_focus",
+                   fill = NA, aes_use = "color", linewidth = 0.15,
+                   tx_fixed = list(color = "lightgray"),
+                   channel = 3:1, dark = TRUE, normalize_channels = TRUE)
+```
+
+# Cell identity annotation
+
+* Annotate Xenium data with matched, annotated single-cell RNA-seq data
+* Use the RCTD method implemented in the ```spacexr``` package
+* Read in matched single-cell data
+* add meta-data containing cell type annotations to single-cell object
+* Run RCTD pipeline
+* Add RCTD outputs to tissue positions (cells.csv) Xenium file
+* Plot and examine RCTD results.
+* RCTD results are already generated and are stored in an RDS file. Read in and add to Xenium cells.csv file and plot.
+
+* After RCTD is ran:
+* the ```first_type``` column gives the first cell type predicted on the bead (for all spot_class conditions except “reject”)
+
+```{r, message=FALSE}
+# read in the RCTD results (calculated prior)
+RCTD <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/RCTD_results.rds")
+
+# read in cell locations file from Xenium raw data bundle
+# gunzip("xenium/raw/cells.csv.gz")
+
+# cell locations from cells.csv file
+cells_pos <- read.csv("/Users/a1233698/Downloads/xenium_colon/cells.csv",
+                       header = TRUE, row.names=1)
+
+# merge RCTD de-convolution results to Xenium cell positions file
+head(cells_pos)
+annotation.df <- RCTD@results$results_df
+head(annotation.df)
+# combine cell positions and denconvolution results
+cells_pos <- cells_pos[rownames(annotation.df),]
+cells_pos <- cbind(cells_pos, annotation.df)
+head(cells_pos)
+annotation.df <- annotation.df[(annotation.df$spot_class != "reject"),]
+# check
+table(cells_pos$spot_class)
+table(cells_pos$first_type)
+table(cells_pos$second_type)
+
+# plot
+options(repr.plot.width=20, repr.plot.height=6)
+l <- ggplot()+
+  geom_point(cells_pos, mapping=aes(x=-x_centroid, y=y_centroid,color=first_type),
+             stroke=0, size=.8)+
+  scale_color_manual(values=c('#911eb4', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+                               '#e6194b', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe',
+                               '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000',
+                               '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080')) +
+  guides(colour = guide_legend(override.aes = list(size=8)))+
+  scale_x_reverse()+scale_y_reverse()+
+  theme_bw()
+l
+
+# generate an interactive plot with plotly
+# ggplotly(l)
+
+## results
+#   “singlet” (1 cell type on pixel),
+#   “doublet_certain” (2 cell types on pixel),
+#   “doublet_uncertain” (2 cell types on pixel, but only confident of 1),
+#   “reject” (no prediction given for pixel).
+```
+
+
+# Re-run RCTD with Level2 cell type annotations
+
+* The paper provided level 2 finer grain cell type annotations on the matched single-cell RNA-seq dataset. 
+* I re-ran RCTD again on these labels. 
+* This will annotate our Xenium dataset with those finer grained annotations. 
+
+```{r,message=FALSE}
+# read in the RCTD level 2 results (calculated prior)
+RCTD_level2 <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/RCTD_level2.rds")
+
+# read in cell locations file from Xenium raw data bundle
+# gunzip("xenium/raw/cells.csv.gz")
+
+# cell locations from cells.csv file
+cells_pos <- read.csv("/Users/a1233698/Downloads/xenium_colon/cells.csv",
+                       header = TRUE, row.names=1)
+
+# merge RCTD de-convolution results to Xenium cell positions file
+head(cells_pos)
+annotation.df <- RCTD_level2@results$results_df
+head(annotation.df)
+# merge
+cells_pos <- cells_pos[rownames(annotation.df),]
+cells_pos <- cbind(cells_pos, annotation.df)
+head(cells_pos)
+annotation.df <- annotation.df[(annotation.df$spot_class != "reject"),]
+# check
+table(cells_pos$spot_class)
+table(cells_pos$first_type)
+table(cells_pos$second_type)
+
+# plot
+# more cell labels means a bigger colour palette is needed
+library(RColorBrewer)
+# Choose a palette with enough colors
+custom_palette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999", "#882255",
+                   "#44AA99", "#AA4499", "#117733", "#DDCC77", "#CC6677", "#88CCEE", "#AA4466", "#44AA88", "#999933",
+                   "#DDCCAA", "#66AA77", "#AA44DD", "#771155", "#778899", "#BBBB44", "#4499AA", "#994499", "#AA6688",
+                   "#99AA00", "#AAAA11", "#663300", "#AA4400")
+# plot
+options(repr.plot.width=8, repr.plot.height=8)
+t <- ggplot()+
+  geom_point(cells_pos, mapping=aes(x=-x_centroid, y=y_centroid,color=first_type),
+             stroke=0, size=1)+
+  scale_color_manual(values=custom_palette) +
+  guides(colour = guide_legend(override.aes = list(size=6)))+
+  scale_x_reverse()+scale_y_reverse()+
+  theme_bw() + theme(legend.position = "right")
+t
+
+# plot just one cell identity of interest
+cell_type <- "Goblet"
+options(repr.plot.width=13, repr.plot.height=12)
+ggplot()+
+  geom_point(cells_pos, mapping=aes(x=-x_centroid, y=y_centroid,),
+             stroke=0, size=.8, col="lightgrey")+
+  geom_point(cells_pos[(cells_pos$first_type==cell_type),],
+             mapping=aes(x=-x_centroid, y=y_centroid),
+             stroke=0, size=.8, col="red")+
+  scale_x_reverse()+scale_y_reverse()+
+  ggtitle(cell_type)+
+  theme_bw()
+
+## Optional - further RCTD analysis
+# results <- RCTD@results
+# norm_weights = normalize_weights(results$weights) 
+# cell_type_names <- RCTD@cell_type_info$info[[2]]
+# spatialRNA <- RCTD@spatialRNA
+# resultsdir <- 'RCTD_Plots'
+# dir.create(resultsdir)
+# # plot
+# plot_cond_occur(cell_type_names, resultsdir, norm_weights, spatialRNA)
+# check PDF file
+#plot_weights(cell_type_names, spatialRNA, resultsdir, norm_weights) 
+```
+
+Checkpoint
+
+```{r}
+saveRDS(object = se, file = "xenium/data/se_final.rds")
+```
+
+# Calculating RCTD results
+
+* To run RCTD yourself, use the code below. You will need an annotated single-cell RNA-seq dataset ideally within a ```Seurat``` or ```SingleCellExperiment``` object and a Xenium dataset. RCTD will also work on other spatial transcriptomics platforms.
+* Read more -> https://www.nature.com/articles/s41587-021-00830-w
+
+```{r}
+# read in single-cell data
+# seu <- readRDS(file = "data/seu_filtered_colon_paper.rds")
+
+# sce <- as.SingleCellExperiment(x = seu)
+
+## Run RCTD
+# ref = seu
+# query = se Xenium obj
+
+## extract information to pass to the RCTD Reference function
+# counts_sce <- assay(sce)
+# cluster_sce <- as.factor(sce$Level1)
+# names(cluster_sce) <- colnames(sce)
+# nUMI_sce <- sce$nCount_originalexp
+# names(nUMI_sce) <- colnames(sce)
+# reference_sce <- Reference(counts_sce, cluster_sce, nUMI_sce)
+#
+# # set up query with the RCTD function SpatialRNA
+# # use se Xenium object
+#
+# counts_se <- assay(se)
+# coords <- spatialCoords(se)
+# coords_df <- as.data.frame(coords)
+# colnames(coords) <- c("x", "y")
+# coords[is.na(colnames(coords))] <- NULL
+# query_se <- SpatialRNA(coords_df, counts_se, colSums(counts_se))
+# #
+# RCTD <- create.RCTD(query_se, reference_sce, max_cores = 8)
+# # doublet mode for Xenium data
+# RCTD <- run.RCTD(RCTD, doublet_mode = "doublet")
+# se$RCTD_annotations <- RCTD@results$results_df$first_type
+# colData(se)$new_RCTD <- RCTD@results$results_df$first_type
+#
+#saveRDS(object = RCTD, file = "data/RCTD.rds")
+```
+
+Gene signature - Goblet cells
+
+```{r}
+goblet_genes <- c("PIGR", "CLCA1", "MUC12")
+
+plotSpatialFeature(se, goblet_genes, 
+                   colGeometryName = "cellSeg", 
+                   ncol = 2,
+                   pointsize = 2, 
+                   scattermore = TRUE)
+
+```
+
+Save
+
+```{r}
+saveRDS(object = se, file = "colon_analysis.rds")
+```
+
