@@ -13,6 +13,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This part of the analysis will read in raw data and construct a data object containing the 10x Xenium data. It will also explore the Xenium outputs explore the data object.
 
+10x Genomics Data: https://www.10xgenomics.com/platforms/visium/product-family/dataset-human-crc
+
+Data backup: https://adelaideuniversity.box.com/s/9sjfijf4acuqx50dmmxu511150kqbyf2
+
+Paper of interest: https://www.nature.com/articles/s41588-025-02193-3
+
 # Load libraries
 
 ```{r, echo=FALSE, include=FALSE, warning=FALSE}
@@ -67,7 +73,7 @@ se <- SpatialFeatureExperiment::readXenium(data_dir = dir,
                                            row.names = "symbol")
 
 # Read in data with readRDS instead
-#se3 <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/se_xenium.rds")
+#se3 <- readRDS(file = "/PATH/data/se_xenium.rds")
 ```
 
 # Exploring the Xenium SE object
@@ -106,7 +112,7 @@ colGeometries(se)
 
 # save file as SE object
 # re-use this later as needed
-#saveRDS(object = se, file = "/DIR/se_p5.rds")
+#saveRDS(object = se, file = "/PATH/se_p5.rds")
 ```
 
 Image Data
@@ -207,5 +213,5 @@ EBImage::display(mask)
 # Save checkpoint
 
 ```{r, eval=FALSE}
-saveRDS(object = se, file = "xenium/data/se_xenium.rds")
+saveRDS(object = se, file = "/PATH/data/se_xenium.rds")
 ```
