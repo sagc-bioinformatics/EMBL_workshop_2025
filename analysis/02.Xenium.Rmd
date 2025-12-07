@@ -30,7 +30,7 @@ library(scales)
 library(plotly)
 ```
 
-* The Xenium data should be loaded in from part 1 of the analysis in the ```se``` object
+* The Xenium data can be loaded in from part 1 of the analysis in the ```se``` object
 * If its not, read in data with ```readRDS(xenium/data/se_xenium.rds)```
 
 ```{r, eval=FALSE}
@@ -192,7 +192,7 @@ plotSpatialFeature(se, "ACP5", colGeometryName = "cellSeg",
 Checkpoint
 
 ```{r}
-saveRDS(object = se, file = "xenium/data/se_clust.rds")
+saveRDS(object = se, file = "/PATH/xenium/data/se_clust.rds")
 ```
 
 
