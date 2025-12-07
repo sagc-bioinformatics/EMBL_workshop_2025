@@ -59,17 +59,17 @@ usage: ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-B bind_interface]
 
 If SSH is not available, please install [PuTTY](https://www.putty.org/).
 
-Open PuTTY and connect using the IP address of your VM as the host name, and set port to 22.
+Open PuTTY and connect using `setonix.pawsey.org.au` as the host name, and set port to 22.
 
 When prompted, type in your username and password.
 
 
 ### **macOS**
 
-Use `ssh` in the *Terminal* app. For example, if your IP is `0.0.0.0` and user name is `user`, you would enter:
+Use `ssh` in the *Terminal* app. For example, if your user name is `user`, you would enter:
 
 ```
-ssh user@0.0.0.0
+ssh user@setonix.pawsey.org.au
 ```
 
 When prompted, type your password and then press `return`.
