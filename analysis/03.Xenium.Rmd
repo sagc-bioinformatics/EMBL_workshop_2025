@@ -136,13 +136,13 @@ plotSpatialFeature(se, "TRAC", colGeometryName = "cellSeg",
 
 ```{r, message=FALSE}
 # read in the RCTD results (calculated prior)
-RCTD <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/RCTD_results.rds")
+RCTD <- readRDS(file = "/PATH/xenium_colon/RCTD_results.rds")
 
 # read in cell locations file from Xenium raw data bundle
 # gunzip("xenium/raw/cells.csv.gz")
 
 # cell locations from cells.csv file
-cells_pos <- read.csv("/Users/a1233698/Downloads/xenium_colon/cells.csv",
+cells_pos <- read.csv("/PATH/xenium_colon/cells.csv",
                        header = TRUE, row.names=1)
 
 # merge RCTD de-convolution results to Xenium cell positions file
@@ -192,13 +192,10 @@ l
 
 ```{r,message=FALSE}
 # read in the RCTD level 2 results (calculated prior)
-RCTD_level2 <- readRDS(file = "/Users/a1233698/Library/CloudStorage/Box-Box/other/ASI_workshop/data/RCTD_level2.rds")
-
-# read in cell locations file from Xenium raw data bundle
-# gunzip("xenium/raw/cells.csv.gz")
+RCTD_level2 <- readRDS(file = "/PATH/xenium_colon/RCTD_level2.rds")
 
 # cell locations from cells.csv file
-cells_pos <- read.csv("/Users/a1233698/Downloads/xenium_colon/cells.csv",
+cells_pos <- read.csv("/PATH/xenium_colon/cells.csv",
                        header = TRUE, row.names=1)
 
 # merge RCTD de-convolution results to Xenium cell positions file
@@ -324,6 +321,6 @@ plotSpatialFeature(se, goblet_genes,
 Save
 
 ```{r}
-saveRDS(object = se, file = "colon_analysis.rds")
+saveRDS(object = se, file = "PATH/results/colon_analysis.rds")
 ```
 
