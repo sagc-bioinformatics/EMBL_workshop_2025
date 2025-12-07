@@ -19,7 +19,7 @@ We'll run:
 
 ## Xenium
 
-- [Xenium part 1](01.Xenium.Rmd)
-- [Xenium part 2](02.Xenium.Rmd)
-- [Xenium part 3](03.Xenium.Rmd)
+- [Xenium part 1](analysis/01.Xenium.Rmd)
+- [Xenium part 2](analysis/02.Xenium.Rmd)
+- [Xenium part 3](analysis/03.Xenium.Rmd)
 
