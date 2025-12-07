@@ -25,6 +25,12 @@ We'll run:
 - [Xenium part 2](analysis/02.Xenium.Rmd)
 - [Xenium part 3](analysis/03.Xenium.Rmd)
 
+**Tip, make RBioformats work by running this line:**
+
+```
+dyn.load('/usr/lib/jvm/default-java/lib/server/libjvm.so')
+```
+
 # Setup
 
 You will be given a username and password to login on the day.
