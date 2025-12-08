@@ -89,4 +89,10 @@ Same as macOS, an SSH client should be included. If not, install via the default
 # ubuntu
 sudo apt install openssh-client
 ```
+### Xenium data
 
+https://www.10xgenomics.com/platforms/visium/product-family/dataset-human-crc
+
+```
+wget https://cf.10xgenomics.com/samples/xenium/2.0.0/Xenium_V1_Human_Colon_Cancer_P5_CRC_Add_on_FFPE/Xenium_V1_Human_Colon_Cancer_P5_CRC_Add_on_FFPE_outs.zip
+```
